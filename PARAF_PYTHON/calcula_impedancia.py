@@ -8,42 +8,66 @@ def main():
     # Lê os dados do ensiao dos arquivos .txt
     frequenciaArray = loadtxt('dados_frequencia.txt')
     valoresEntradaArray = loadtxt('dados_entrada.txt')
-    valoresSaidaArray = loadtxt('dados_saida.txt')    
+    valoresSaidaArray = loadtxt('dados_saida.txt') 
     
-    # Calcula a impedância através dos 3 métodos
-    timeZC, impFreqZC, impMagZC, impFasZC = calculaImpZC(frequenciaArray, valoresEntradaArray, valoresSaidaArray)
-    timeFFT, impFreqFFT, impMagFFT, impFasFFT = calculaImpFFT(frequenciaArray, valoresEntradaArray, valoresSaidaArray)
-    timeSWF, impFreqSWF, impMagSWF, impFasSWF = calculaImpfSWF(frequenciaArray, valoresEntradaArray, valoresSaidaArray)    
+    metodo = 'SWF'
+    calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo)   
+
+
+def calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo):
+    # Calcula a curva de impedância
+    # metodo:
+    # 'ZC' - Cruzamento por Zero
+    # 'DFT' - Transformada Discreta de Fourier
+    # 'SWF' - Aproximação por Curvas Senoidais
+    # 'ALL' - Todos os métodos
     
+    if metodo == 'ZC'  or metodo == 'ALL':
+        timeZC, impFreqZC, impMagZC, impFasZC = calculaImpZC(frequenciaArray, valoresEntradaArray, valoresSaidaArray)
+    if metodo == 'DFT'  or metodo == 'ALL':
+        timeFFT, impFreqFFT, impMagFFT, impFasFFT = calculaImpFFT(frequenciaArray, valoresEntradaArray, valoresSaidaArray)
+    if metodo == 'SWF' or metodo == 'ALL':
+        timeSWF, impFreqSWF, impMagSWF, impFasSWF = calculaImpfSWF(frequenciaArray, valoresEntradaArray, valoresSaidaArray)
+        
     # Plota os resultados
     plt.figure(1)    
     ax1 = plt.subplot(211)
-    # ax1.set_title('Curvas de Magnitude e Fase da Impedância do Alto-Falante')    
-    plt.plot(impFreqZC, impMagZC, '-g', label='ZC')
-    plt.plot(impFreqFFT, impMagFFT, 'b', label='DFT')
-    plt.plot(impFreqSWF, impMagSWF, '-r', label='SWF')
+    if metodo == 'ZC'  or metodo == 'ALL':
+        plt.plot(impFreqZC, impMagZC, ':go', label='ZC')
+    if metodo == 'DFT'  or metodo == 'ALL':
+        plt.plot(impFreqFFT, impMagFFT, ':bo', label='DFT')
+    if metodo == 'SWF' or metodo == 'ALL':
+        plt.plot(impFreqSWF, impMagSWF, ':ro', label='SWF')
+        
     plt.ylabel("Magnitude [bits]")
     ax1.legend(loc='upper right', fontsize='large')
     plt.xticks(arange(0, 1000+1, 100.0))
     ax1.grid(True)
+    
     ax2 = plt.subplot(212, sharex=ax1)
-    plt.plot(impFreqZC, impFasZC, '-g', label='ZC')
-    plt.plot(impFreqFFT, impFasFFT, '-b', label='DFT')
-    plt.plot(impFreqSWF, impFasSWF, '-r', label='SWF')
+    if metodo == 'ZC'  or metodo == 'ALL':
+        plt.plot(impFreqZC, impFasZC, ':go', label='ZC')
+    if metodo == 'DFT'  or metodo == 'ALL':
+        plt.plot(impFreqFFT, impFasFFT, ':bo', label='DFT')
+    if metodo == 'SWF' or metodo == 'ALL':
+        plt.plot(impFreqSWF, impFasSWF, ':ro', label='SWF')
+    
     plt.ylabel("Fase [°]")
     plt.xlabel("Frequência [Hz]")
     ax2.legend(loc='lower right', fontsize='large')
     ax2.grid(True)
-    plt.figure(2)
-    ax3 = plt.subplot(111)
-    #ax3.set_title('Tempo Necessário para Calcular a Impedância')
-    barwidth = 0.75
-    ax3.bar(1, timeZC, barwidth, color='g')
-    ax3.bar(2, timeFFT, barwidth, color='b')
-    ax3.bar(3, timeSWF, barwidth, color='r')
-    ax3.set_xticks((1, 2, 3))
-    ax3.set_xticklabels(('ZC', 'DFT', 'SWF'))
-    plt.ylabel("t [s]")        
+
+    if metodo == 'ALL':    
+        plt.figure(2)
+        ax3 = plt.subplot(111)
+        barwidth = 0.75
+        ax3.bar(1, timeZC, barwidth, color='g')
+        ax3.bar(2, timeFFT, barwidth, color='b')
+        ax3.bar(3, timeSWF, barwidth, color='r')
+        ax3.set_xticks((1, 2, 3))
+        ax3.set_xticklabels(('ZC', 'DFT', 'SWF'))
+        plt.ylabel("t [s]")        
+        
     plt.show()
 
 
@@ -107,11 +131,11 @@ def calculaImpZC(frequenciaArray, valoresEntradaArray, valoresSaidaArray):
         # Calcula a fase da impedancia
         angImped = 360*(zeroEntrada - zeroSaidaA)/(zeroSaidaB - zeroSaidaA)        
         
-        # Corrige o quadrante do ângulo
+        # Corrige o quadrante do ângulo       
         if angImped > 180:
             angImped = -(360 - angImped)
         if angImped < -180:
-            angImped = (360 + angImped)
+            angImped = (360 + angImped)        
             
         # Guarda os valores da impedância
         impFreq.append(frequencia)
@@ -178,10 +202,16 @@ def calculaImpFFT(frequenciaArray, valoresEntradaArray, valoresSaidaArray):
         magImped = magSaida / magEntrada
         angImped = angSaida - angEntrada
         
+        # Corrige o quadrante do ângulo       
+        if angImped > 180:
+            angImped = -(360 - angImped)
+        if angImped < -180:
+            angImped = (360 + angImped)  
+        
         # Guarda os valores da impedância
         impFreq.append(frequencia)
         impMag.append(magImped)
-        impFas.append(angImped)
+        impFas.append(angImped)        
         
         # Calcula o tempo necessário para esse método
         end_time = time.time()
@@ -202,8 +232,8 @@ def calculaImpfSWF(frequenciaArray, valoresEntradaArray, valoresSaidaArray):
         N = 1024
         
         # Período de amostragem (1 / 44.1kHz)
-        T = 238/10500000
-        
+        T = 238/10500000        
+                                    
         # Frequencia discreta * Período de amostragem
         w = 2*pi*frequencia
         
@@ -306,7 +336,7 @@ def calculaImpfSWF(frequenciaArray, valoresEntradaArray, valoresSaidaArray):
         # Calcula os modulos
         magSaida = sqrt(x[0]**2 + x[1]**2)
         magEntrada = sqrt(x[4]**2 + x[5]**2)
-        magImped = magSaida / magEntrada
+        magImped = magSaida / magEntrada            
         
         # Calcula os ângulos
         angSaida = 180*arctan(x[0]/x[1])/pi

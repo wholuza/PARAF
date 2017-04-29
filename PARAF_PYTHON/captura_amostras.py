@@ -1,7 +1,6 @@
 import ProtocolPy
 import time
 from numpy import savetxt
-from math import floor
 
 def main():
     frequenciaArray = []
@@ -16,7 +15,7 @@ def main():
     # Frequencia final
     freqFinal = 1000
     # Passo (10% da frequência atual)
-    passo = 1.1
+    passo = 1.05
     
     # Realiza um ensaio para cada frequência    
     start_time = time.time()    
@@ -25,7 +24,7 @@ def main():
         ard.setaFrequencia(frequencia);
         ard.setaCiclosPorFrequencia(0)
         
-        print("Freq: %d" %(frequencia))       
+        print("Freq: %.2f" %(frequencia))       
 
         # Inicia o ensaio para a frequencia determinada
         ard.iniciaEnsaio()
@@ -40,14 +39,14 @@ def main():
         valoresSaidaArray.append(valoresSaida)        
         
         # Incrementa a frequencia 
-        frequencia = floor(frequencia*passo)                  
+        frequencia = frequencia*passo                  
         
     print("Tempo: %s\n" %(time.time() - start_time))
     
     # Salva os resultados do ensaio em arquivos .txt
-    savetxt('frequencia.txt', frequenciaArray)
-    savetxt('entrada.txt', valoresEntradaArray)
-    savetxt('saida.txt', valoresSaidaArray)
+    savetxt('dados_frequencia.txt', frequenciaArray)
+    savetxt('dados_entrada.txt', valoresEntradaArray)
+    savetxt('dados_saida.txt', valoresSaidaArray)
     
 if __name__ == "__main__":
     main()

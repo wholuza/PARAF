@@ -6,6 +6,7 @@ Protocolo de Comunicação Serial
 import serial
 from time import sleep
 from sys import byteorder
+from decimal import *
 
 class Proto(object):
     '''
@@ -14,7 +15,8 @@ class Proto(object):
     mens_inicio =         0x21 # !   - Inicio da Mensagem    
     mens_final =          0x23 # #   - Fim da Mensagem
     
-    seta_frequencia =     0x46 # F   - Comando para setar a frequencia
+    seta_frequenciaI =    0x46 # F   - Comando para setar a parte inteira da frequencia
+    seta_frequenciaD =    0x47 # G   - Comando para setar a parte decimal da frequencia
     seta_ciclos =         0x43 # C   - Comando para setar o número de ciclos por frequencia 
     inicia_ensaio =       0x41 # A   - Comando para iniciar o ensaio
 
@@ -66,22 +68,39 @@ class Proto(object):
           
         
     def setaFrequencia(self, frequencia):
-        frequencia_LSB = (frequencia & 0x00FF)
-        frequencia_MSB = (frequencia & 0xFF00) >> 8        
+        frequenciaInt, frequenciaDec = divmod(frequencia, 1)      
        
-        # Compõe a mensagem
+        # Compõe a mensagem da parte inteira
+        frequenciaInt_LSB = (int(frequenciaInt) & 0x00FF)
+        frequenciaInt_MSB = (int(frequenciaInt) & 0xFF00) >> 8   
         mensagem = bytearray([self.mens_inicio,
-                              self.seta_frequencia,
-                              frequencia_LSB,
-                              frequencia_MSB,
+                              self.seta_frequenciaI,
+                              frequenciaInt_LSB,
+                              frequenciaInt_MSB,
                               self.mens_final])
         
-        # Envia a mensagem
+        # Envia a mensagem da parte inteira
         self.ser.write(mensagem)
         self.ser.flush()
         while(self.ser.out_waiting > 0):
             sleep(self.serialDelay)
-    
+            
+        # Compõe a mensagem da parte decimal
+        frequenciaDec = int(frequenciaDec*65536)
+        frequenciaDec_LSB = (frequenciaDec & 0x00FF)
+        frequenciaDec_MSB = (frequenciaDec & 0xFF00) >> 8
+        mensagem = bytearray([self.mens_inicio,
+                              self.seta_frequenciaD,
+                              frequenciaDec_LSB,
+                              frequenciaDec_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte decimal
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)        
+
     
     def setaCiclosPorFrequencia(self, ciclosPF):      
         ciclosPF_LSB = (ciclosPF & 0x00FF)
