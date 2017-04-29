@@ -68,9 +68,14 @@ void Protocolo::_processa_mensagem(){
 					iniciaEnsaio();
 					break;
 
-				case codigos::seta_frequencia:
-					// Compõe o valor da frequencia
-					setaFrequencia(mensagem[1] + (mensagem[2] << 8));
+				case codigos::seta_frequenciaI:
+					// Compõe o valor da parte inteira da frequencia
+					setaFrequenciaI(mensagem[1] + (mensagem[2] << 8));
+					break;
+
+				case codigos::seta_frequenciaD:
+					// Compõe o valor da parte decimal da frequencia
+					setaFrequenciaD(mensagem[1] + (mensagem[2] << 8));
 					break;
 
 				case codigos::seta_ciclos:

@@ -34,7 +34,8 @@ public:
 	void _processa_mensagem();
 
 	// Executado quando recebe o comando
-	virtual void setaFrequencia(float) {};
+	virtual void setaFrequenciaI(uint16_t) {};
+	virtual void setaFrequenciaD(uint16_t) {};
 	virtual void setaCiclosPorFreq(uint16_t) {};
 	virtual void iniciaEnsaio() {};
 	// Executado quando recebe o valor de escape
@@ -51,7 +52,8 @@ protected:
 		mens_inicio = 		0x21, // !   - Inicio da Mensagem
 		mens_final = 		0x23, // #   - Fim da Mensagem
 
-		seta_frequencia =   0x46, // F   - Comando para setar a frequencia
+		seta_frequenciaI =  0x46, // F   - Comando para setar a parte inteira da frequencia
+		seta_frequenciaD =  0x47, // G   - Comando para setar a parte decimal da frequencia
 		seta_ciclos = 		0x43, // C   - Comando para setar o número de ciclos por frequencia
 		inicia_ensaio =		0x41, // A   - Comando para iniciar o ensaio
 

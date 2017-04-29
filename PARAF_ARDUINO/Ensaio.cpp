@@ -67,15 +67,28 @@ Ensaio::Ensaio(){
 		_ciclosCapturados = 10;
 }
 
-void Ensaio::setaFrequencia(float frequencia){
+void Ensaio::setaFrequenciaI(uint16_t frequenciaInt){
 	// Método para setar a frequencia atual do ensaioo
-	_frequencia = frequencia;
+	_frequencia = frequenciaInt;
 
 	// Calcula o incremento de fase a ser adicionado a cada interrupção
-	uIncrementoFase = frequencia*AMOSTRAS_POR_INTERRUPCAO_FP;
+	uIncrementoFase = _frequencia*AMOSTRAS_POR_INTERRUPCAO_FP;
 
 	// Calcula o número de ciclos necessários para obter as amostras capturadas
-	_ciclosCapturados = ceil(AMOSTRAS_CAPTURADAS/(TX_AMOSTRAGEM/frequencia));
+	_ciclosCapturados = ceil(AMOSTRAS_CAPTURADAS/(TX_AMOSTRAGEM/_frequencia));
+}
+
+void Ensaio::setaFrequenciaD(uint16_t frequenciaDec){
+	// Método para setar a parte decimal da frequencia do ensaio
+	uint16_t frequenciaInt = abs(_frequencia);
+	uint32_t frequenciaFP = (frequenciaInt << 16) + frequenciaDec;
+	_frequencia = frequenciaFP/65536.0;
+
+	// Calcula o incremento de fase a ser adicionado a cada interrupção
+	uIncrementoFase = _frequencia*AMOSTRAS_POR_INTERRUPCAO_FP;
+
+	// Calcula o número de ciclos necessários para obter as amostras capturadas
+	_ciclosCapturados = ceil(AMOSTRAS_CAPTURADAS/(TX_AMOSTRAGEM/_frequencia));
 }
 
 void Ensaio::setaCiclosPorFreq(uint16_t ciclosPorFreq){

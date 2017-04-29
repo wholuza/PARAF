@@ -56,7 +56,8 @@ public:
 	bool continuar_ensaio = false;
 
 	Ensaio();
-	void setaFrequencia(float frequencia);
+	void setaFrequenciaI(uint16_t frequenciaInt);
+	void setaFrequenciaD(uint16_t frequenciaDec);
 	void setaCiclosPorFreq(uint16_t ciclosPorFreq);
 	void iniciaEnsaio();
 	void InterrupcaoTC4();
