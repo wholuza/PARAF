@@ -1,3 +1,22 @@
+
+'''
+MEDIÇÃO DE PARÂMETROS DE ALTO-FALANTES COM O ARDUINO DUE
+
+Arquivo: captura_amostras.py
+
+Linguagem: Python 3.6
+
+Descrição:
+Captura os sinais de tensão e corrente para diversas frequências
+Grava em arquivos .txt.
+
+Implementado no Computador em Python 3.6
+(Código Fonte)
+
+@author: Filipe Sgarabotto Luza
+'''
+# -*- coding: utf-8 -*-
+
 import ProtocolPy
 import time
 from numpy import savetxt
@@ -11,11 +30,11 @@ def main():
     ard = ProtocolPy.Proto()
 
     # Frequencia inicial
-    frequencia = 20
+    frequencia = 50
     # Frequencia final
-    freqFinal = 1000
+    freqFinal = 300
     # Passo (10% da frequência atual)
-    passo = 1.05
+    passo = 1.1
     
     # Realiza um ensaio para cada frequência    
     start_time = time.time()    

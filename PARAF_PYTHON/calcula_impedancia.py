@@ -1,3 +1,24 @@
+'''
+MEDIÇÃO DE PARÂMETROS DE ALTO-FALANTES COM O ARDUINO DUE
+
+Arquivo: calcula_impedancia.py
+
+Linguagem: Python 3.6
+
+Descrição:
+Calcula a curva de impedância a partir dos dados contidos em arquivos .txt.
+Utiliza três métodos de cálculo da impedância:
+    ZC: Cruzamento por Zero
+    DFT: Transformada Discreta de Fourier
+    SWF: Aproximação por Curvas Senoidais com 7 Parâmetros
+
+Implementado no Computador em Python 3.6
+(Código Fonte)
+
+@author: Filipe Sgarabotto Luza
+'''
+# -*- coding: utf-8 -*-
+
 from numpy import loadtxt, zeros, pi, sqrt, sin, cos, arctan, fft, abs, angle, matmul, arange, arcsin
 from scipy.signal import flattop
 from numpy.linalg import inv
@@ -10,7 +31,7 @@ def main():
     valoresEntradaArray = loadtxt('dados_entrada.txt')
     valoresSaidaArray = loadtxt('dados_saida.txt') 
     
-    metodo = 'SWF'
+    metodo = 'ZC'
     calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo)   
 
 
@@ -19,7 +40,7 @@ def calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo):
     # metodo:
     # 'ZC' - Cruzamento por Zero
     # 'DFT' - Transformada Discreta de Fourier
-    # 'SWF' - Aproximação por Curvas Senoidais
+    # 'SWF' - Aproximação por Curvas Senoidais com 7 Parâmetros
     # 'ALL' - Todos os métodos
     
     if metodo == 'ZC'  or metodo == 'ALL':
@@ -87,16 +108,17 @@ def calculaImpZC(frequenciaArray, valoresEntradaArray, valoresSaidaArray):
         entradaDC = 0
         for n in range(0, N):
             saidaDC += valoresSaida[n]/N
-            entradaDC += valoresEntrada[n]/N        
+            entradaDC += valoresEntrada[n]/N
+       
         
         # Valor RMS da Saída e da Entrada
         rmsSaida = 0
         rmsEntrada = 0
         for n in range(0, N):
-            rmsSaida += (valoresSaida[n] - saidaDC)**2/N
-            rmsEntrada += (valoresEntrada[n] - entradaDC)**2/N
-        rmsSaida = sqrt(rmsSaida)
-        rmsEntrada = sqrt(rmsEntrada)
+            rmsSaida += (valoresSaida[n] - saidaDC)**2
+            rmsEntrada += (valoresEntrada[n] - entradaDC)**2
+        rmsSaida = sqrt(rmsSaida/N)
+        rmsEntrada = sqrt(rmsEntrada/N)
         
         # Magnitude da Impedância
         magImped = rmsSaida / rmsEntrada    

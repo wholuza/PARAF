@@ -1,7 +1,20 @@
+'''
+MEDIÇÃO DE PARÂMETROS DE ALTO-FALANTES COM O ARDUINO DUE
+
+Arquivo: captura_impedancia.py
+
+Linguagem: Python 3.6
+
+Descrição:
+Realiza ensaios em diferentes frequências e captura as impedâncias calculadas pelo Arduino.
+Plota a curva de impedância.
+
+Implementado no Computador em Python 3.6
+(Código Fonte)
+
+@author: Filipe Sgarabotto Luza
+'''
 # -*- coding: utf-8 -*-
-'''
-Protocolo de Comunicação Serial
-'''
 
 import serial
 from time import sleep
@@ -15,10 +28,15 @@ class Proto(object):
     mens_inicio =         0x21 # !   - Inicio da Mensagem    
     mens_final =          0x23 # #   - Fim da Mensagem
     
-    seta_frequenciaI =    0x46 # F   - Comando para setar a parte inteira da frequencia
-    seta_frequenciaD =    0x47 # G   - Comando para setar a parte decimal da frequencia
-    seta_ciclos =         0x43 # C   - Comando para setar o número de ciclos por frequencia 
-    inicia_ensaio =       0x41 # A   - Comando para iniciar o ensaio
+    seta_freqIniInt  =    0x46 # F   - Seta a parte inteira da frequencia inicial
+    seta_freqIniDec  =    0x47 # G   - Seta a parte decimal da frequencia inicial
+    seta_freqFimInt  =    0x48 # H   - Seta a parte inteira da frequencia final
+    seta_freqFimDec  =    0x49 # I   - Seta a parte decimal da frequencia final
+    seta_passoInt    =    0x50 # P   - Seta a parte inteira do passo
+    seta_passoDec    =    0x51 # Q   - Seta a parte decimal do passo
+
+    seta_ciclos =         0x43 # C   - Seta o número de ciclos por frequencia
+    inicia_ensaio =       0x41 # A   - Inicia o ensaio
 
     size =                0x73 # s   - Tamanho do pacote
     byte_LS =             0x61 # a   - Byte menos significativo
@@ -35,7 +53,7 @@ class Proto(object):
 
     def __init__(self):
         # Configura a porta serial        
-        self.ser.port = '/dev/ttyACM0'
+        self.ser.port = '/dev/ttyACM4'
         self.ser.baudrate = 230400
          
         # Abre a porta serial
@@ -67,14 +85,14 @@ class Proto(object):
         while(self.ser.out_waiting > 0): sleep(self.serialDelay)
           
         
-    def setaFrequencia(self, frequencia):
+    def setaFrequenciaInicial(self, frequencia):
         frequenciaInt, frequenciaDec = divmod(frequencia, 1)      
        
         # Compõe a mensagem da parte inteira
         frequenciaInt_LSB = (int(frequenciaInt) & 0x00FF)
         frequenciaInt_MSB = (int(frequenciaInt) & 0xFF00) >> 8   
         mensagem = bytearray([self.mens_inicio,
-                              self.seta_frequenciaI,
+                              self.seta_freqIniInt,
                               frequenciaInt_LSB,
                               frequenciaInt_MSB,
                               self.mens_final])
@@ -90,7 +108,7 @@ class Proto(object):
         frequenciaDec_LSB = (frequenciaDec & 0x00FF)
         frequenciaDec_MSB = (frequenciaDec & 0xFF00) >> 8
         mensagem = bytearray([self.mens_inicio,
-                              self.seta_frequenciaD,
+                              self.seta_freqIniDec,
                               frequenciaDec_LSB,
                               frequenciaDec_MSB,
                               self.mens_final])
@@ -99,7 +117,80 @@ class Proto(object):
         self.ser.write(mensagem)
         self.ser.flush()
         while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)        
+            sleep(self.serialDelay)
+            
+    def setaFrequenciaFinal(self, frequencia):
+        frequenciaInt, frequenciaDec = divmod(frequencia, 1)      
+       
+        # Compõe a mensagem da parte inteira
+        frequenciaInt_LSB = (int(frequenciaInt) & 0x00FF)
+        frequenciaInt_MSB = (int(frequenciaInt) & 0xFF00) >> 8   
+        mensagem = bytearray([self.mens_inicio,
+                              self.seta_freqFimInt,
+                              frequenciaInt_LSB,
+                              frequenciaInt_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte inteira
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)
+            
+        # Compõe a mensagem da parte decimal
+        frequenciaDec = int(frequenciaDec*65536)
+        frequenciaDec_LSB = (frequenciaDec & 0x00FF)
+        frequenciaDec_MSB = (frequenciaDec & 0xFF00) >> 8
+        mensagem = bytearray([self.mens_inicio,
+                              self.seta_freqFimDec,
+                              frequenciaDec_LSB,
+                              frequenciaDec_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte decimal
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)
+            
+    def setaFrequencia(self, frequencia):
+        self.setaFrequenciaInicial(frequencia)
+        self.setaFrequenciaFinal(frequencia)
+        self.setaPasso(0.0)
+            
+    def setaPasso(self, passo):
+        passoInt, passoDec = divmod(passo, 1)
+       
+        # Compõe a mensagem da parte inteira
+        passoInt_LSB = (int(passoInt) & 0x00FF)
+        passoInt_MSB = (int(passoInt) & 0xFF00) >> 8   
+        mensagem = bytearray([self.mens_inicio,
+                              self.seta_passoInt,
+                              passoInt_LSB,
+                              passoInt_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte inteira
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)
+            
+        # Compõe a mensagem da parte decimal
+        passoDec = int(passoDec*65536)
+        passoDec_LSB = (passoDec & 0x00FF)
+        passoDec_MSB = (passoDec & 0xFF00) >> 8
+        mensagem = bytearray([self.mens_inicio,
+                              self.seta_passoDec,
+                              passoDec_LSB,
+                              passoDec_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte decimal
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)    
 
     
     def setaCiclosPorFrequencia(self, ciclosPF):      

@@ -18,6 +18,8 @@
 #define ENSAIO_H_
 
 #include "Protocolo.h"
+#include <vector>
+#include <math.h>
 
 class Ensaio : public Protocolo {
 public:
@@ -40,25 +42,47 @@ public:
 	uint32_t uAcumuladorFase;
 	volatile uint32_t uIncrementoFase;
 
-	// Frequencia atual do ensaio
-	float _frequencia = 100;
+	// Frequencia do Ensaio
+	float _frequenciaInicial;
+	float _frequenciaFinal;
+	float _passo;
+	float _frequencia;
+
 	// Ciclos de onda realizados e capturados
 	uint16_t _ciclosPorFreq;
 	uint16_t _ciclosCapturados;
+	uint16_t ciclos;
 
-	// Buffer que armazenam os valores das amostras enviadas e recebidas
+	// Buffer que armazena os valores das amostras enviadas e recebidas
 	uint16_t amostrasSaida[AMOSTRAS_CAPTURADAS+1];
 	uint16_t amostrasEntrada[AMOSTRAS_CAPTURADAS+1];
 	int indiceAmostras;
 	int indiceAmostrasMax;
 
-	uint16_t ciclos;
+	// Vetores com as frequencias utilizadas no ensaio
+	std::vector<uint16_t> impFreqLSB;
+	std::vector<uint16_t> impFreqMSB;
+	// Vetores com as magnitudes e fases da impedancia
+	std::vector<uint16_t> impMagLSB;
+	std::vector<uint16_t> impMagMSB;
+	std::vector<uint16_t> impFasLSB;
+	std::vector<uint16_t> impFasMSB;
+
 	bool continuar_ensaio = false;
+	bool grava_amostras = true;
 
 	Ensaio();
-	void setaFrequenciaI(uint16_t frequenciaInt);
-	void setaFrequenciaD(uint16_t frequenciaDec);
-	void setaCiclosPorFreq(uint16_t ciclosPorFreq);
+	void setFrequenciaInicial(float);
+	void setFrequenciaFinal(float);
+	void setFrequencia(float);
+	void setCiclosPorFreq(uint16_t);
+	void setPasso(float);
+	float getFrequenciaInicial();
+	float getFrequenciaFinal();
+	float getPasso();
+
+	void calculaImpedancia();
+
 	void iniciaEnsaio();
 	void InterrupcaoTC4();
 	void atualizaEnsaio();

@@ -62,25 +62,62 @@ void Protocolo::atualizaSerial(){
 }
 
 void Protocolo::_processa_mensagem(){
+	// Variáveis utilizadas
+	uint16_t frequenciaIniInt;
+	uint16_t frequenciaIniDec;
+	uint16_t frequenciaFimInt;
+	uint16_t frequenciaFimDec;
+	uint16_t passoInt;
+	uint16_t passoDec;
+
 	// Analisa o código enviado na mensagem e chama a função correspondente
 	switch(mensagem[0]){
 				case codigos::inicia_ensaio:
 					iniciaEnsaio();
 					break;
 
-				case codigos::seta_frequenciaI:
-					// Compõe o valor da parte inteira da frequencia
-					setaFrequenciaI(mensagem[1] + (mensagem[2] << 8));
+				case codigos::seta_freqIniInt:
+					// Compõe o valor da parte inteira da frequencia inicial
+					frequenciaIniInt = mensagem[1] + (mensagem[2] << 8);
+					setFrequenciaInicial(frequenciaIniInt);
 					break;
 
-				case codigos::seta_frequenciaD:
-					// Compõe o valor da parte decimal da frequencia
-					setaFrequenciaD(mensagem[1] + (mensagem[2] << 8));
+				case codigos::seta_freqIniDec:
+					// Compõe o valor da parte decimal da frequencia inicial
+					frequenciaIniDec = mensagem[1] + (mensagem[2] << 8);
+					frequenciaIniInt = abs(getFrequenciaInicial());
+					setFrequenciaInicial((uint32_t)((frequenciaIniInt << 16) + frequenciaIniDec) /65536.0);
+					break;
+
+				case codigos::seta_freqFimInt:
+					// Compõe o valor da parte inteira da frequencia final
+					frequenciaFimInt = mensagem[1] + (mensagem[2] << 8);
+					setFrequenciaFinal(frequenciaFimInt);
+					break;
+
+				case codigos::seta_freqFimDec:
+					// Compõe o valor da parte decimal da frequencia final
+					frequenciaFimDec = mensagem[1] + (mensagem[2] << 8);
+					frequenciaFimInt = abs(getFrequenciaFinal());
+					setFrequenciaFinal((uint32_t)((frequenciaFimInt << 16) + frequenciaFimDec) /65536.0);
+					break;
+
+				case codigos::seta_passoInt:
+					// Compõe o valor da parte inteira do passo
+					passoInt = mensagem[1] + (mensagem[2] << 8);
+					setPasso(passoInt);
+					break;
+
+				case codigos::seta_passoDec:
+					// Compõe o valor da parte decimal do passo
+					passoDec = mensagem[1] + (mensagem[2] << 8);
+					passoInt = abs(getPasso());
+					setPasso((uint32_t)((passoInt << 16) + passoDec) /65536.0);
 					break;
 
 				case codigos::seta_ciclos:
 					// Compõe o valor do número de ciclos por frequência
-					setaCiclosPorFreq(mensagem[1] + (mensagem[2] << 8));
+					setCiclosPorFreq(mensagem[1] + (mensagem[2] << 8));
 					break;
 			}
 }
