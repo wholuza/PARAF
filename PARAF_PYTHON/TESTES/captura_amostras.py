@@ -30,9 +30,9 @@ def main():
     ard = ProtocolPy.Proto()
 
     # Frequencia inicial
-    frequencia = 50
+    frequencia = 10
     # Frequencia final
-    freqFinal = 300
+    freqFinal = 2000
     # Passo (10% da frequência atual)
     passo = 1.1
     
@@ -41,7 +41,7 @@ def main():
     while frequencia < freqFinal:
         # Seta a frequencia e o número de ciclos a serem realizados
         ard.setaFrequencia(frequencia);
-        ard.setaCiclosPorFrequencia(0)
+        ard.setaFatorRegime(0.5)
         
         print("Freq: %.2f" %(frequencia))       
 

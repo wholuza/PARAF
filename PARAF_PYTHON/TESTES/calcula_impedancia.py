@@ -27,11 +27,11 @@ import time
 
 def main():
     # Lê os dados do ensiao dos arquivos .txt
-    frequenciaArray = loadtxt('dados_frequencia.txt')
-    valoresEntradaArray = loadtxt('dados_entrada.txt')
-    valoresSaidaArray = loadtxt('dados_saida.txt') 
+    frequenciaArray = loadtxt('dados_old_frequencia.txt')
+    valoresEntradaArray = loadtxt('dados_old_entrada.txt')
+    valoresSaidaArray = loadtxt('dados_old_saida.txt') 
     
-    metodo = 'ZC'
+    metodo = 'ALL'
     calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo)   
 
 
@@ -62,7 +62,7 @@ def calculaImp(frequenciaArray, valoresEntradaArray, valoresSaidaArray, metodo):
         
     plt.ylabel("Magnitude [bits]")
     ax1.legend(loc='upper right', fontsize='large')
-    plt.xticks(arange(0, 1000+1, 100.0))
+    plt.xticks(arange(0, 1000+1, 50.0))
     ax1.grid(True)
     
     ax2 = plt.subplot(212, sharex=ax1)
