@@ -6,7 +6,7 @@ O projeto é dividido em duas partes:
 #### PARAF_ARDUINO (Executado na placa Arduino Due) 
 #### PARAF_PYTHON (Executado em um computador)
 
-## PARAF_ARDUINO 
+### PARAF_ARDUINO 
 Desenvolvida na linguagem C++, contém os protocolos de comunicacão com o computador, a técnica de síntese do sinal (DDS) e os metodos de cálculo da impedância (ZC e SWF).
 A compilacão desse programa é realizada com o uso da plataforma Arduino 1.6.11.
 A implementacão da SWF utiliza algumas funcões da biblioteca CMSIS, por isso é necessário modificar a plataforma Arduino antes da compilação. 
@@ -15,7 +15,8 @@ A implementacão da SWF utiliza algumas funcões da biblioteca CMSIS, por isso �
 ##### As instruções para habilitar a biblioteca CMSIS encontam-se no arquivo: Habilitar_CMSIS_Arduino.txt
 
 
-## PARAF_PYTHON 
+
+### PARAF_PYTHON 
 Desenvolvida na linguagem Python 3.6.1, contém o protocolo de comunicacão com o Arduino, a plotagem das curvas de impedancia, o cálculo dos parâmetros e a interface com o usuário.
 As principais bibliotecas utilizadas são: PySerial, MatplotLib, NumPy, SciPy e PyQt5.
 Para instalar todas as dependências Python, utilize o comando Pip da seguinte forma:
