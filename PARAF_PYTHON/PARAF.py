@@ -1,5 +1,5 @@
 '''
-MEDIÇÃO DE PARÂMETROS DE ALTO-FALANTES COM O ARDUINO DUE
+MEDIÇÃO DE PARÂMETROS DO ALTO-FALANTE COM O ARDUINO
 
 Arquivo: PARAF.py
 
@@ -401,7 +401,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):        
         QtWidgets.QMainWindow.__init__(self)        
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)        
-        self.setWindowTitle("Medição de Parâmetros de Alto-falantes com o Arduino Due")
+        self.setWindowTitle("Medição de Parâmetros do Alto-falante com o Arduino")
         
         # Objeto Ensaio
         self.ensaio = Ensaio()
@@ -607,7 +607,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def sobre(self):
         mensagemSobre = """
-Medição de Parâmetros de Alto-falantes com o Arduino Due
+Medição de Parâmetros do Alto-falante com o Arduino
 
 Autor
 Filipe Sgarabotto Luza
@@ -624,7 +624,7 @@ def main():
     qApp = QtWidgets.QApplication(sys.argv)    
     aw = ApplicationWindow()
     
-    progname = 'Medição de Parâmetros de Alto-falantes com o Arduino Due'
+    progname = 'Medição de Parâmetros do Alto-falante com o Arduino'
     aw.setWindowTitle("%s" % progname)
     
     aw.show()
