@@ -17,34 +17,49 @@ Implementado no Computador em Python 3.6
 # -*- coding: utf-8 -*-
 
 import serial
+import serial.tools as tools
 from time import sleep
 from sys import byteorder
 from decimal import *
+import struct
 
 class Proto(object):
     '''
     Protocolo de comunicação Serial
     '''
-    mens_inicio =         0x21 # !   - Inicio da Mensagem    
-    mens_final =          0x23 # #   - Fim da Mensagem
+    # Códigos dos bytes enviados via serial
+    mens_inicio         =   0x21 # !   - Inicio da Mensagem    
+    mens_final          =   0x23 # #   - Fim da Mensagem
     
-    seta_freqIniInt  =    0x46 # F   - Seta a parte inteira da frequencia inicial
-    seta_freqIniDec  =    0x47 # G   - Seta a parte decimal da frequencia inicial
-    seta_freqFimInt  =    0x48 # H   - Seta a parte inteira da frequencia final
-    seta_freqFimDec  =    0x49 # I   - Seta a parte decimal da frequencia final
-    seta_passoInt    =    0x50 # P   - Seta a parte inteira do passo
-    seta_passoDec    =    0x51 # Q   - Seta a parte decimal do passo
-
-    seta_ciclos =         0x43 # C   - Seta o número de ciclos por frequencia
-    inicia_ensaio =       0x41 # A   - Inicia o ensaio
-
-    size =                0x73 # s   - Tamanho do pacote
-    byte_LS =             0x61 # a   - Byte menos significativo
-    byte_MS =             0x7A # z   - Byte mais significativo
+    setFreqIniInt       =   0x46 # F   - Seta a parte inteira da frequencia inicial
+    setFreqIniDec       =   0x47 # G   - Seta a parte decimal da frequencia inicial
+    setFreqFimInt       =   0x48 # H   - Seta a parte inteira da frequencia final
+    setFreqFimDec       =   0x49 # I   - Seta a parte decimal da frequencia final
+    setPassoInt         =   0x4A # J   - Seta a parte inteira do passo
+    setPassoDec         =   0x4B # K   - Seta a parte decimal do passo
     
-    rec_sucesso =         0x79 # y   - Valor recebido com sucesso    
-    rec_falha =           0x6E # n   - Falha no recebimento do valor
-    esc =                 0x1B # ESC - Valor de escape que interrompe um envio
+    setFreqRelIniInt    =   0x4C # L   - Seta a parte inteira da frequencia relevante inicial
+    setFreqRelIniDec    =   0x4D # M   - Seta a parte decimal da frequencia relevante inicial
+    setFreqRelFimInt    =   0x4E # N   - Seta a parte inteira da frequencia relevante final
+    setFreqRelFimDec    =   0x4F # O   - Seta a parte decimal da frequencia relevante final
+    setPassoRelInt      =   0x50 # P   - Seta a parte inteira do passo relevante
+    setPassoRelDec      =   0x51 # Q   - Seta a parte decimal do passo relevante
+    
+    setFatorRegimeInt   =   0x52 # R   - Seta a parte inteira do fator de regime permanente
+    setFatorRegimeDec   =   0x53 # S   - Seta a parte decimal do fator de regime permanente
+    
+    setMetodoZC         =   0X54 # T   - Seta o método de Cruzamento por Zero para o cálculo da Impedância
+    setMetodoSWF        =   0X55 # U   - Seta o método de Ajuste de Curvas Senoidais para o cálculo da Impedância
+
+    inicia_ensaio       =   0x41 # A   - Inicia o ensaio
+
+    size                =   0x73 # s   - Tamanho do pacote
+    byte_LS             =   0x61 # a   - Byte menos significativo
+    byte_MS             =   0x7A # z   - Byte mais significativo
+    
+    rec_sucesso         =   0x79 # y   - Valor recebido com sucesso    
+    rec_falha           =   0x6E # n   - Falha no recebimento do valor
+    esc                 =   0x1B # ESC - Valor de escape que interrompe um envio
 
     # Porta serial
     ser = serial.Serial()
@@ -52,13 +67,25 @@ class Proto(object):
       
 
     def __init__(self):
-        # Configura a porta serial        
-        self.ser.port = '/dev/ttyACM4'
-        self.ser.baudrate = 230400
+        # Configura a porta serial
+        portNum = 0
+        self.ser.baudrate = 230400        
          
         # Abre a porta serial
         while not self.ser.isOpen():
-            self.ser.open()           
+            try:
+                self.ser.port = '/dev/ttyACM' + str(portNum)
+                self.ser.open()
+            except serial.serialutil.SerialException as exc:
+                print("Erro Serial: %s"%(exc))
+                portNum += 1
+                self.ser.is_open = 0
+                if portNum <= 10:
+                    pass
+                else:
+                    print("Não foi possível abrir a porta Serial: %s"%(exc))
+                    raise
+                           
         sleep(0.02)
         
         print("Porta serial %s aberta." %(self.ser.port))
@@ -83,132 +110,73 @@ class Proto(object):
         self.ser.write(mensagem)
         self.ser.flush()
         while(self.ser.out_waiting > 0): sleep(self.serialDelay)
-          
+        
+    def _setaValor(self, valor, codigoInt, codigoDec=None):
+        valorInt, valorDec = divmod(valor, 1)      
+       
+        # Compõe a mensagem da parte inteira
+        valorInt_LSB = (int(valorInt) & 0x00FF)
+        valorInt_MSB = (int(valorInt) & 0xFF00) >> 8   
+        mensagem = bytearray([self.mens_inicio,
+                              codigoInt,
+                              valorInt_LSB,
+                              valorInt_MSB,
+                              self.mens_final])
+        
+        # Envia a mensagem da parte inteira
+        self.ser.write(mensagem)
+        self.ser.flush()
+        while(self.ser.out_waiting > 0):
+            sleep(self.serialDelay)
+        
+        if codigoDec is not None:
+            # Compõe a mensagem da parte decimal
+            valorDec = int(valorDec*65536)
+            valorDec_LSB = (valorDec & 0x00FF)
+            valorDec_MSB = (valorDec & 0xFF00) >> 8
+            mensagem = bytearray([self.mens_inicio,
+                                  codigoDec,
+                                  valorDec_LSB,
+                                  valorDec_MSB,
+                                  self.mens_final])
+            
+            # Envia a mensagem da parte decimal
+            self.ser.write(mensagem)
+            self.ser.flush()
+            while(self.ser.out_waiting > 0):
+                sleep(self.serialDelay)          
         
     def setaFrequenciaInicial(self, frequencia):
-        frequenciaInt, frequenciaDec = divmod(frequencia, 1)      
-       
-        # Compõe a mensagem da parte inteira
-        frequenciaInt_LSB = (int(frequenciaInt) & 0x00FF)
-        frequenciaInt_MSB = (int(frequenciaInt) & 0xFF00) >> 8   
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_freqIniInt,
-                              frequenciaInt_LSB,
-                              frequenciaInt_MSB,
-                              self.mens_final])
-        
-        # Envia a mensagem da parte inteira
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)
-            
-        # Compõe a mensagem da parte decimal
-        frequenciaDec = int(frequenciaDec*65536)
-        frequenciaDec_LSB = (frequenciaDec & 0x00FF)
-        frequenciaDec_MSB = (frequenciaDec & 0xFF00) >> 8
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_freqIniDec,
-                              frequenciaDec_LSB,
-                              frequenciaDec_MSB,
-                              self.mens_final])
-        
-        # Envia a mensagem da parte decimal
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)
+        self._setaValor(frequencia, self.setFreqIniInt, self.setFreqIniDec)
             
     def setaFrequenciaFinal(self, frequencia):
-        frequenciaInt, frequenciaDec = divmod(frequencia, 1)      
-       
-        # Compõe a mensagem da parte inteira
-        frequenciaInt_LSB = (int(frequenciaInt) & 0x00FF)
-        frequenciaInt_MSB = (int(frequenciaInt) & 0xFF00) >> 8   
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_freqFimInt,
-                              frequenciaInt_LSB,
-                              frequenciaInt_MSB,
-                              self.mens_final])
+        self._setaValor(frequencia, self.setFreqFimInt, self.setFreqFimDec)
         
-        # Envia a mensagem da parte inteira
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)
+    def setaPasso(self, passo):        
+        self._setaValor(passo, self.setPassoInt, self.setPassoDec)
+        
+    def setaFrequenciaRelInicial(self, frequencia):
+        self._setaValor(frequencia, self.setFreqRelIniInt, self.setFreqRelIniDec)
             
-        # Compõe a mensagem da parte decimal
-        frequenciaDec = int(frequenciaDec*65536)
-        frequenciaDec_LSB = (frequenciaDec & 0x00FF)
-        frequenciaDec_MSB = (frequenciaDec & 0xFF00) >> 8
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_freqFimDec,
-                              frequenciaDec_LSB,
-                              frequenciaDec_MSB,
-                              self.mens_final])
+    def setaFrequenciaRelFinal(self, frequencia):
+        self._setaValor(frequencia, self.setFreqRelFimInt, self.setFreqRelFimDec)
         
-        # Envia a mensagem da parte decimal
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)
+    def setaPassoRel(self, passo):        
+        self._setaValor(passo, self.setPassoRelInt, self.setPassoRelDec)
             
     def setaFrequencia(self, frequencia):
         self.setaFrequenciaInicial(frequencia)
         self.setaFrequenciaFinal(frequencia)
-        self.setaPasso(0.0)
-            
-    def setaPasso(self, passo):
-        passoInt, passoDec = divmod(passo, 1)
-       
-        # Compõe a mensagem da parte inteira
-        passoInt_LSB = (int(passoInt) & 0x00FF)
-        passoInt_MSB = (int(passoInt) & 0xFF00) >> 8   
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_passoInt,
-                              passoInt_LSB,
-                              passoInt_MSB,
-                              self.mens_final])
+        self.setaPasso(0.0)  
         
-        # Envia a mensagem da parte inteira
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)
-            
-        # Compõe a mensagem da parte decimal
-        passoDec = int(passoDec*65536)
-        passoDec_LSB = (passoDec & 0x00FF)
-        passoDec_MSB = (passoDec & 0xFF00) >> 8
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_passoDec,
-                              passoDec_LSB,
-                              passoDec_MSB,
-                              self.mens_final])
+    def setaFatorRegime(self, fator):
+        self._setaValor(fator, self.setFatorRegimeInt, self.setFatorRegimeDec)
         
-        # Envia a mensagem da parte decimal
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0):
-            sleep(self.serialDelay)    
-
-    
-    def setaCiclosPorFrequencia(self, ciclosPF):      
-        ciclosPF_LSB = (ciclosPF & 0x00FF)
-        ciclosPF_MSB = (ciclosPF & 0xFF00) >> 8
-        
-        # Compõe a mensagem
-        mensagem = bytearray([self.mens_inicio,
-                              self.seta_ciclos,
-                              ciclosPF_LSB,
-                              ciclosPF_MSB,
-                              self.mens_final])
-        
-        # Envia a mensagem
-        self.ser.write(mensagem)
-        self.ser.flush()
-        while(self.ser.out_waiting > 0): sleep(self.serialDelay)        
-    
+    def setaMetodoImpedancia(self, metodo):
+        if metodo == 'SWF' or metodo == 0:
+            self._enviaComando(self.setMetodoSWF)
+        elif metodo == 'ZC' or metodo ==1:
+            self._enviaComando(self.setMetodoZC)
         
     def iniciaEnsaio(self):
         # Limpa o buffer
@@ -308,6 +276,43 @@ class Proto(object):
             valores.append(self.recebeValor())
             
         return valores
+    
+    
+    def recebeImpedancias(self):
+        # Recebe as frequencias
+        impFreq = []
+        impFreqLSB = self.recebeValores()  
+        impFreqMSB = self.recebeValores()
+        for MSB, LSB in zip(impFreqMSB, impFreqLSB):
+            iMSB = struct.pack('H', MSB)
+            iLSB = struct.pack('H', LSB)
+            valB = struct.pack('B'*4, iLSB[0], iLSB[1], iMSB[0], iMSB[1])
+            valF = struct.unpack('f', valB)
+            impFreq.append(valF[0])        
+            
+        # Recebe as magnitudes
+        impMag = []
+        impMagLSB = self.recebeValores()  
+        impMagMSB = self.recebeValores()
+        for MSB, LSB in zip(impMagMSB, impMagLSB):
+            iMSB = struct.pack('H', MSB)
+            iLSB = struct.pack('H', LSB)
+            valB = struct.pack('B'*4, iLSB[0], iLSB[1], iMSB[0], iMSB[1])
+            valF = struct.unpack('f', valB)
+            impMag.append(valF[0])        
+        
+    # Recebe as fases
+        impFas = []
+        impFasLSB = self.recebeValores()  
+        impFasMSB = self.recebeValores()
+        for MSB, LSB in zip(impFasMSB, impFasLSB):
+            iMSB = struct.pack('H', MSB)
+            iLSB = struct.pack('H', LSB)
+            valB = struct.pack('B'*4, iLSB[0], iLSB[1], iMSB[0], iMSB[1])
+            valF = struct.unpack('f', valB)
+            impFas.append(valF[0])
+            
+        return impFreq, impMag, impFas
 
         
     def __del__(self):        
