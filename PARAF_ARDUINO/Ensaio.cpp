@@ -53,52 +53,41 @@ Ensaio::Ensaio(){
 	TC1->TC_CHANNEL[1].TC_IER=TC_IER_CPCS;
 	TC1->TC_CHANNEL[1].TC_IDR=~TC_IER_CPCS;
 	// Inicializa o DAC
-	analogWrite(DAC1,0);
-	// Seta a resolução da entrada analógica (16-bits)
+	analogWriteResolution(12);
+	analogWrite(DAC0, 2048);
+
+	// Seta a resolução da entrada analógica (12-bits)
 	analogReadResolution(12);
 
-	// Inicializa as frequencias e o passo
-	_frequenciaInicial = 100;
-	_frequenciaFinal = 100;
+	// Inicializa as frequencias, o passo, o fator de regime permamente e o método de cálculo
+	_freqIni = 0;
+	_freqFim = 0;
+	_passo = 0;
+	_freqRelIni = 0;
+	_freqRelFim = 0;
+	_passoRel = 0;
 	_frequencia = 0;
-	_passo = 1.1;
+	_fatorRegime = 0;
+	_metodoImp = 0;
 
 	// Inicializa todos os contadores utilizados no ensaio
 		uAcumuladorFase = 0;
 		uIncrementoFase = 0;
 		indiceAmostras = 0;
-		indiceAmostrasMax = 0;
-		ciclos = 0;
-		_ciclosPorFreq = _frequencia;
-		_ciclosCapturados = 10;
+		ciclosRealizados = 0;
+		ciclosCapturar = 0;
 }
 
 
 void Ensaio::setFrequencia(float frequencia){
-	// Método para setar a frequencia atual do ensaioo
+	// Seta a frequencia atual do ensaioo
 	_frequencia = frequencia;
 
 	// Calcula o incremento de fase a ser adicionado a cada interrupção
 	uIncrementoFase = _frequencia*AMOSTRAS_POR_INTERRUPCAO_FP;
 
-	// Calcula o número de ciclos necessários para obter as amostras capturadas
-	_ciclosCapturados = ceil(AMOSTRAS_CAPTURADAS/(TX_AMOSTRAGEM/_frequencia));
-	
-	_ciclosPorFreq = abs(_frequencia);
-}
-
-
-void Ensaio::setCiclosPorFreq(uint16_t ciclosPorFreq){
-	// Método para setar o número de ciclos realizados por frequência
-
-	if (ciclosPorFreq != 0){
-		_ciclosPorFreq = ciclosPorFreq;
-	}
-	// Caso o número de ciclos for zero
-	// Realizará tantos ciclos quanto for a frequência definida
-	else{
-		_ciclosPorFreq = abs(_frequencia);
-	}
+	// Calcula o número de ciclos completos necessários para obter as amostras
+	ciclosCapturar = ceil(AMOSTRAS_CAPTURADAS/(TX_AMOSTRAGEM/_frequencia));
 }
 
 
@@ -106,13 +95,12 @@ void Ensaio::iniciaEnsaio(){
 	// Inicia o ensaio
 
 	// Seta a frequencia inicial
-	setFrequencia(_frequenciaInicial);
+	setFrequencia(_freqIni);
 
 	// Zera todos os contadores
 	uAcumuladorFase = 0;
 	indiceAmostras = 0;
-	indiceAmostrasMax = 0;
-	ciclos = 0;
+	ciclosRealizados = 0;
 	
 	// Limpa os vetores de frequência e impedância
 	impFreqLSB.clear();
@@ -143,10 +131,10 @@ void Ensaio::InterrupcaoTC4(){
 	if(uAcumuladorFase > AMOSTRAS_POR_CICLO_FP){
 		// Inicia um novo ciclo
 		uAcumuladorFase -= AMOSTRAS_POR_CICLO_FP;
-		ciclos++;
+		ciclosRealizados++;
 
-		// Caso não esteja nos últimos ciclos
-		if (ciclos <= _ciclosPorFreq - _ciclosCapturados){
+		// Caso não esteja no regime permanente
+		if (ciclosRealizados < _fatorRegime*_frequencia) {
 			// Reseta o contador de amostras
 			indiceAmostras = 0;
 		}
@@ -164,12 +152,18 @@ void Ensaio::InterrupcaoTC4(){
 	// Envia para o DAC o valor da saída analógica
 	dacc_write_conversion_data(DACC_INTERFACE, saidaAnalogica);
 
-	// Grava o valor da saída
-	amostrasSaida[indiceAmostras] = saidaAnalogica;
+	//////////////////////////////
 
+	// Grava o valor da saída
+	// Placa velha
+	//amostrasSaida[indiceAmostras] = saidaAnalogica;
+
+	// Nova Placa
+	volatile uint16_t entradaTensao = analogRead(0);
+	amostrasSaida[indiceAmostras] = entradaTensao;
 
 	// Le o valor da entrada analogica
-	volatile uint16_t entradaAnalogica = analogRead(0);
+	volatile uint16_t entradaAnalogica = analogRead(1);
 
 	// Grava o valor da entrada analógica
 	amostrasEntrada[indiceAmostras] = entradaAnalogica;
@@ -187,15 +181,15 @@ void Ensaio::atualizaEnsaio(){
 
 	if (continuar_ensaio == true){
 
-		// Se já capturou todas as amostras para essa frequência
-		if (ciclos >= _ciclosPorFreq){
+		// Se já capturou todas as amostras para a frequência atual
+		if (indiceAmostras >= AMOSTRAS_CAPTURADAS){
 			
 			// Se foi um ensaio com uma única frequencia
-			if (abs(_passo) == 0 or _frequenciaInicial == _frequenciaFinal){
+			if (abs(_passo) == 0 or _freqIni == _freqFim){
 				// Desativa a interrupção
 				NVIC_DisableIRQ(TC4_IRQn);
 				// Seta o DAC no valor zero
-				analogWrite(DAC1,0);
+				analogWrite(DAC0,2048);
 				
 				continuar_ensaio = false;
 				
@@ -205,12 +199,12 @@ void Ensaio::atualizaEnsaio(){
 				enviaValores(amostrasEntrada, AMOSTRAS_CAPTURADAS);					
 			}			
 			
-			// Caso já tenha terminado o ensaio com múltiplas frequencias
-			else if (_frequencia > _frequenciaFinal){	
+			// Se já terminou um ensaio de múltiplas frequências
+			else if (_frequencia > _freqFim){	
 				// Desativa a interrupção
 				NVIC_DisableIRQ(TC4_IRQn);
 				// Seta o DAC no valor zero
-				analogWrite(DAC1,0);
+				analogWrite(DAC0,2048);
 				
 				continuar_ensaio = false;
 				
@@ -232,24 +226,35 @@ void Ensaio::atualizaEnsaio(){
 				uint16_t *impFasMSB_Ptr = &impFasMSB[0];
 				enviaValores(impFasMSB_Ptr, impFasMSB.size());
 			}
-			// Caso não tenha terminado o ensaio
+
+			// Caso não tenha terminado o ensaio de múltiplas frequências
 			else{
-				// Calcula a impedancia para essa frequencia
-				calculaImpedancia();
-				
 				// Desativa a interrupção
 				NVIC_DisableIRQ(TC4_IRQn);
 				// Seta o DAC no valor zero
-				analogWrite(DAC1,0);
+				analogWrite(DAC0,2048);
 				
-				// Incrementa a frequencia
-				setFrequencia(_frequencia*_passo);
+				// Calcula a impedancia para essa frequencia
+				if (_metodoImp == 0){
+					calculaImpedanciaSWF();
+				}
+				else if (_metodoImp == 1){
+					calculaImpedanciaZC();
+				}
+
+				// Caso esteja nas frequencias relevantes
+				if ((_frequencia > _freqRelIni) and (_frequencia < _freqRelFim)){
+					setFrequencia(_frequencia*_passoRel);
+				}
+				// Caso não esteja nas frequencias relevantes
+				else{
+					setFrequencia(_frequencia*_passo);
+				}
 				
 				// Zera todos os contadores
 				uAcumuladorFase = 0;
 				indiceAmostras = 0;
-				indiceAmostrasMax = 0;
-				ciclos = 0;
+				ciclosRealizados = 0;
 
 				// Habilita a interrupção
 				NVIC_EnableIRQ(TC4_IRQn);
@@ -258,7 +263,7 @@ void Ensaio::atualizaEnsaio(){
 	}
 }
 
-void Ensaio::calculaImpedancia(){
+void Ensaio::calculaImpedanciaZC(){
 	// Calcula a Impedância pelo Método do Cruzamento por Zero
 	
 	// Valor Médio DC
@@ -293,7 +298,6 @@ void Ensaio::calculaImpedancia(){
 	double S1 = amostrasSaida[i+1] - saidaDC;
 	zeroSaidaA = i - S0/(S1 - S0);
 	
-	
 	// Segunda passagem por zero da Saída
 	i++;
 	double zeroSaidaB = 0.0;
@@ -317,16 +321,14 @@ void Ensaio::calculaImpedancia(){
 	double E1 = amostrasEntrada[i+1] - entradaDC;
 	zeroEntrada = i - E0/(E1 - E0);	
 	
-	// Calcula a fase da impedancia (Evita valores negativos)
-	float impFas = 360.0*((zeroEntrada - zeroSaidaA)/(zeroSaidaB - zeroSaidaA));
+	// Calcula a fase da impedancia
+	float32_t impFas = 360.0*((zeroEntrada - zeroSaidaA)/(zeroSaidaB - zeroSaidaA));
 
-	// Corrige angulos no quarto quadrante
-	if (impFas - 270.0 > 0.0){
-		impFas = impFas - 360.0;
-	}
-	if (impFas + 270.0 < 0.0){
-		impFas = impFas + 360.0;
-	}
+	// Corrige o ângulo
+	while   (impFas >  360.0) impFas -= 360.0;
+	while   (impFas < -360.0) impFas += 360.0;
+	if      (impFas >  180.0) impFas -= 360.0;
+	else if (impFas < -180.0) impFas += 360.0;
 
 	// Guarda os valores da frequencia e impedância
 	uint16_t* freqPtr = (uint16_t*)(&_frequencia);
@@ -340,28 +342,191 @@ void Ensaio::calculaImpedancia(){
 	impFasMSB.push_back(impFasPtr[1]);
 }
 
-void Ensaio::setFrequenciaInicial(float frequenciaInicial){
-		_frequenciaInicial = frequenciaInicial;
+
+void Ensaio::calculaImpedanciaSWF(){
+	// Calcula a Impedância pelo Método de Ajuste de Curvas Senoidais
+
+	float32_t N = AMOSTRAS_CAPTURADAS;
+	float32_t T = 1/TX_AMOSTRAGEM;
+	float32_t W = 2*PI*_frequencia;
+
+	// Estimativas iniciais para as amplitudes em fase e quadratura
+	float32_t pA1 = 2048.0;
+	float32_t pA2 = 2048.0;
+	float32_t pB1 = 2048.0;
+	float32_t pB2 = 2048.0;
+
+	// Calcula as matrizes E e G
+	float32_t E[7][7] = { 0 };
+	float32_t G[7] = { 0 };
+	for (int n = 0; n < AMOSTRAS_CAPTURADAS; n++){
+		float32_t WTn = W*T*n;
+
+		float32_t cosWTn;
+		float32_t sinWTn;
+		cosWTn = cos(WTn);
+		sinWTn = sin(WTn);
+
+		float32_t r1 = -2.0*PI*pA1*T*n*sinWTn + 2.0*PI*pB1*T*n*cosWTn;
+		float32_t r2 = -2.0*PI*pA2*T*n*sinWTn + 2.0*PI*pB2*T*n*cosWTn;
+
+		E[0][0] += cosWTn*cosWTn;
+		E[0][1] += cosWTn*sinWTn;
+		E[0][2] += cosWTn;
+		E[0][3] += cosWTn*r1;
+		E[1][1] += sinWTn*sinWTn;
+		E[1][2] += sinWTn;
+		E[1][3] += sinWTn*r1;
+		E[2][3] += r1;
+		E[3][3] += r1*r1 + r2*r2;
+		E[3][4] += cosWTn*r2;
+		E[3][5] += sinWTn*r2;
+		E[3][6] += r2;
+
+		G[0] += cosWTn*amostrasSaida[n];
+		G[1] += sinWTn*amostrasSaida[n];
+		G[2] += amostrasSaida[n];
+		G[3] += amostrasSaida[n]*r1 + amostrasEntrada[n]*r2;
+		G[4] += cosWTn*amostrasEntrada[n];
+		G[5] += sinWTn*amostrasEntrada[n];
+		G[6] += amostrasEntrada[n];
+	}
+
+	// Define os demais valores de E
+	E[1][0] = E[0][1];
+	E[2][0] = E[0][2];
+	E[2][1] = E[1][2];
+	E[2][2] = N;
+	E[3][0] = E[0][3];
+	E[3][1] = E[1][3];
+	E[3][2] = E[2][3];
+	E[4][3] = E[3][4];
+	E[4][4] = E[0][0];
+	E[4][5] = E[0][1];
+	E[4][6] = E[0][2];
+	E[5][3] = E[3][5];
+	E[5][4] = E[0][1];
+	E[5][5] = E[1][1];
+	E[5][6] = E[1][2];
+	E[6][3] = E[3][6];
+	E[6][4] = E[0][2];
+	E[6][5] = E[1][2];
+	E[6][6] = N;
+
+	// Matriz E
+	arm_matrix_instance_f32 E_matrix;
+	arm_mat_init_f32(&E_matrix, 7, 7, (float32_t *)E);
+
+	// Calcula a inversa da matriz E
+	float32_t E_INV[7][7] = { 0 };
+	arm_matrix_instance_f32 E_matrixINV;
+	arm_mat_init_f32(&E_matrixINV, 7, 7, (float32_t *)E_INV);
+	arm_mat_inverse_f32(&E_matrix, &E_matrixINV);
+
+	// Vetor G
+	arm_matrix_instance_f32 G_matrix;
+	arm_mat_init_f32(&G_matrix, 7, 1, (float32_t *)G);
+
+	// Multiplica a inversa de E por G
+	float32_t X[7]  = { 0 };
+	arm_matrix_instance_f32 X_matrix;
+	arm_mat_init_f32(&X_matrix, 7, 1, (float32_t *)X);
+	arm_mat_mult_f32(&E_matrixINV, &G_matrix, &X_matrix);
+
+	// Calcula o módulo da Impedância
+	float32_t magSaida;
+	float32_t magEntrada;
+	arm_sqrt_f32(X[0]*X[0] + X[1]*X[1], &magSaida);
+	arm_sqrt_f32(X[4]*X[4] + X[5]*X[5], &magEntrada);
+	float32_t impMag = magSaida/magEntrada;
+
+	// Calcula a fase da Impedância
+	float32_t fasSaida = atan(X[0] / X[1]);
+	float32_t fasEntrada = atan(X[4] / X[5]);
+	float32_t impFas = 180.0*(fasSaida - fasEntrada)/PI;
+
+	// Guarda os valores da frequencia e impedância
+	uint16_t* freqPtr = (uint16_t*)(&_frequencia);
+	impFreqLSB.push_back(freqPtr[0]);
+	impFreqMSB.push_back(freqPtr[1]);
+	uint16_t* impMagPtr = (uint16_t*)(&impMag);
+	impMagLSB.push_back(impMagPtr[0]);
+	impMagMSB.push_back(impMagPtr[1]);
+	uint16_t* impFasPtr = (uint16_t*)(&impFas);
+	impFasLSB.push_back(impFasPtr[0]);
+	impFasMSB.push_back(impFasPtr[1]);
 }
 
-void Ensaio::setFrequenciaFinal(float frequenciaFinal){
-		_frequenciaFinal = frequenciaFinal;
+void Ensaio::setFreqIni(float frequenciaInicial){
+		_freqIni = frequenciaInicial;
+		// Caso a frequencia relevante não seja definida
+		if (_freqRelIni == 0){
+			_freqRelIni = _freqIni;
+		}
+}
+
+void Ensaio::setFreqFim(float frequenciaFinal){
+		_freqFim = frequenciaFinal;
+		// Caso a frequencia relevante não seja definida
+		if (_freqRelFim == 0){
+			_freqRelFim = _freqFim;
+		}
+}
+
+void Ensaio::setFreqRelIni(float freqRelevInicial){
+		_freqRelIni = freqRelevInicial;
+}
+
+void Ensaio::setFreqRelFim(float freqRelevFinal){
+		_freqRelFim = freqRelevFinal;
 }
 
 void Ensaio::setPasso(float passo){
 		_passo = passo;
+		// Caso o passo relevante não seja definido
+		if (_passoRel == 0){
+			_passoRel = _passo;
+		}
 }
 
-float Ensaio::getFrequenciaInicial(){
-	return _frequenciaInicial;
+void Ensaio::setPassoRel(float passoRelev){
+		_passoRel = passoRelev;
 }
 
-float Ensaio::getFrequenciaFinal(){
-	return _frequenciaFinal;
+void Ensaio::setFatorRegime(float fatorRegime){
+	_fatorRegime = fatorRegime;
+}
+
+void Ensaio::setMetodoImp(int metodo){
+	_metodoImp = metodo;
+}
+
+float Ensaio::getFreqIni(){
+	return _freqIni;
+}
+
+float Ensaio::getFreqFim(){
+	return _freqFim;
+}
+
+float Ensaio::getFreqRelIni(){
+	return _freqRelIni;
+}
+
+float Ensaio::getFreqRelFim(){
+	return _freqRelFim;
 }
 
 float Ensaio::getPasso(){
 	return _passo;
+}
+
+float Ensaio::getPassoRel(){
+	return _passoRel;
+}
+
+float Ensaio::getFatorRegime(){
+	return _fatorRegime;
 }
 
 Ensaio::Protocolo::~Protocolo(){

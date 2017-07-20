@@ -17,9 +17,14 @@
 #ifndef ENSAIO_H_
 #define ENSAIO_H_
 
+#ifndef ARM_MATH_CM3
+#define ARM_MATH_CM3
+#endif
+
 #include "Protocolo.h"
 #include <vector>
 #include <math.h>
+#include <arm_math.h>
 
 class Ensaio : public Protocolo {
 public:
@@ -38,26 +43,32 @@ public:
 	// Tabela com os valores da função seno
 	uint16_t nTabelaSeno[AMOSTRAS_POR_CICLO];
 
+	// Frequencias iniciais/finais do Ensaio, Passo e fator de Regime Permanente
+	float _freqIni;
+	float _freqFim;
+	float _passo;
+	float _freqRelIni;
+	float _freqRelFim;
+	float _passoRel;
+	float _frequencia;
+	float _fatorRegime;
+
+	// Método de cálculo da impedância (0 = SWF, 1 = ZC)
+	uint16_t _metodoImp;
+
 	// Acumulador de fase que é incrementado a cada interrupção
 	uint32_t uAcumuladorFase;
 	volatile uint32_t uIncrementoFase;
 
-	// Frequencia do Ensaio
-	float _frequenciaInicial;
-	float _frequenciaFinal;
-	float _passo;
-	float _frequencia;
-
-	// Ciclos de onda realizados e capturados
-	uint16_t _ciclosPorFreq;
-	uint16_t _ciclosCapturados;
-	uint16_t ciclos;
+	// Ciclos de onda completos a serem capturados para a frequência atual
+	uint16_t ciclosCapturar;
+	// Ciclos de onda completos já realizados para a frequência atual
+	uint16_t ciclosRealizados;
 
 	// Buffer que armazena os valores das amostras enviadas e recebidas
 	uint16_t amostrasSaida[AMOSTRAS_CAPTURADAS+1];
 	uint16_t amostrasEntrada[AMOSTRAS_CAPTURADAS+1];
 	int indiceAmostras;
-	int indiceAmostrasMax;
 
 	// Vetores com as frequencias utilizadas no ensaio
 	std::vector<uint16_t> impFreqLSB;
@@ -69,23 +80,34 @@ public:
 	std::vector<uint16_t> impFasMSB;
 
 	bool continuar_ensaio = false;
-	bool grava_amostras = true;
 
 	Ensaio();
-	void setFrequenciaInicial(float);
-	void setFrequenciaFinal(float);
 	void setFrequencia(float);
-	void setCiclosPorFreq(uint16_t);
-	void setPasso(float);
-	float getFrequenciaInicial();
-	float getFrequenciaFinal();
-	float getPasso();
-
-	void calculaImpedancia();
 
 	void iniciaEnsaio();
+
 	void InterrupcaoTC4();
 	void atualizaEnsaio();
+
+	void calculaImpedanciaZC();
+	void calculaImpedanciaSWF();
+
+	void setFreqIni(float);
+	void setFreqFim(float);
+	void setFreqRelIni(float);
+	void setFreqRelFim(float);
+	void setPasso(float);
+	void setPassoRel(float);
+	void setFatorRegime(float);
+	void setMetodoImp(int);
+
+	float getFreqIni();
+	float getFreqFim();
+	float getFreqRelIni();
+	float getFreqRelFim();
+	float getPasso();
+	float getPassoRel();
+	float getFatorRegime();
 };
 
 #endif /* ENSAIO_H_ */
